@@ -1,0 +1,28 @@
+{
+  "name": "bixie",
+  "description": "Quick infinite scroll webpage {@_@}",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "demo": "http-server -c-1 -o ./dist/",
+    "test": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(pathToFileURL(\"./import-map-hooks.js\"));' --test",
+    "watch": "echo ex: 'node --watch-path ui --watch-path index.js --watch index.js --title RoboticMotionOverview --sleep true --dist ~/Uploads/robots  ~/Downloads/foo/wwwb'",
+    "save": "git add .; git commit -m 'Updated Release'; npm version patch; npm publish; git push --follow-tags;"
+  },
+  "bin": {"bixie": "./index.js"},
+  "keywords": [
+    "www",
+    "meme"
+  ],
+  "author": "@catpea",
+  "license": "GPL",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/catpea/bixie.git"
+  },
+  "bugs": {
+    "url": "https://github.com/catpea/bixie/issues"
+  },
+  "homepage": "https://github.com/catpea/bixie#readme"
+}
