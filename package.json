@@ -1,7 +1,7 @@
 {
   "name": "bixie",
   "description": "Quick infinite scroll webpage {@_@}",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,9 @@
     "watch": "echo ex: 'node --watch-path ui --watch-path index.js --watch index.js --title RoboticMotionOverview --sleep true --dist ~/Uploads/robots  ~/Downloads/foo/wwwb'",
     "save": "git add .; git commit -m 'Updated Release'; npm version patch; npm publish; git push --follow-tags;"
   },
-  "bin": {"bixie": "./index.js"},
+  "bin": {
+    "bixie": "./index.js"
+  },
   "keywords": [
     "www",
     "meme"
