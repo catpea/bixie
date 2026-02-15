@@ -6,7 +6,6 @@ import { readdir, readFile, writeFile, mkdir, copyFile } from 'fs/promises';
 
 import { createHash } from 'crypto';
 import { createReadStream } from 'fs';
-import { pipeline } from 'stream/promises';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,11 +15,47 @@ import { parseFlags } from './parse-flags.js';
 
 const flags = parseFlags();
 
+if (!flags.positional.length || flags.help || flags.h) {
+  console.log(`bixie <@_@> - quick infinite scroll webpage generator
+
+Usage:
+  bixie [options] <source-directory>
+
+Options:
+  --dist <path>       Output directory (default: ./dist)
+  --title <text>      Page title (default: Media Gallery)
+  --autoplay <bool>   Autoplay videos on scroll (default: true)
+  --muted <bool>      Mute videos (default: false)
+  --loop <bool>       Loop videos (default: true)
+  --controls <bool>   Show video controls (default: true)
+  --per-page <n>      Items loaded per scroll (default: 5)
+  --threshold <n>     Visibility ratio to trigger autoplay (default: 0.5)
+  --help              Show this help message
+
+Examples:
+  bixie ~/Downloads/memes
+  bixie --dist ~/www/gallery --title "Robot Files" ~/media/robots
+  bixie --muted --no-loop ~/media/clips
+
+Source directory should contain images (jpg, png, gif, webp)
+and/or videos (mp4, webm, ogg). Files are content-addressed
+(renamed to their hash) in the output.
+
+Note: browsers require muted for autoplay to work without
+user interaction. Use --muted if autoplay is not working.`);
+  process.exit(0);
+}
+
 const defaults = {
   title: 'Media Gallery',
-  sleep: false,
   dist: './dist',
   ui: path.join(__dirname, 'ui'),
+  autoplay: true,
+  muted: false,
+  loop: true,
+  controls: true,
+  'per-page': 5,
+  threshold: 0.5,
 };
 
 const options = Object.assign(defaults, flags);
@@ -63,12 +98,20 @@ for ( const userInterfaceFile of userInterfaceFiles ) await copyFile(path.join(s
 
 let txt = await readFile(distIndexHtml, 'utf8');
 txt = txt.replace(/<title>.*?<\/title>/s, `<title>${options.title}</title>`);
+
+const config = JSON.stringify({
+  autoplay: options.autoplay,
+  muted: options.muted,
+  loop: options.loop,
+  controls: options.controls,
+  perPage: options['per-page'],
+  threshold: options.threshold,
+});
+txt = txt.replace(/const CONFIG = .*?;/, `const CONFIG = ${config};`);
+
 await writeFile(distIndexHtml, txt, 'utf8');
 
 console.log('Copied!')
-
-
-
 
 
 
@@ -82,11 +125,4 @@ function contentAddressableName(source, algorithm = 'sha256', encoding = 'hex') 
     rs.on('end', () => resolve(`${algorithm}-${hash.digest(encoding)}`));
     rs.on('error', reject);
   });
-}
-
-
-if(options.sleep){
-  setTimeout(()=>{
-    console.log('Sleeping!')
-  }, 1000*60*60)
 }

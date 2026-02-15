@@ -14,8 +14,12 @@
     "bixie": "./index.js"
   },
   "keywords": [
-    "www",
-    "meme"
+    "gallery",
+    "infinite-scroll",
+    "media",
+    "video",
+    "autoplay",
+    "static-site"
   ],
   "author": "@catpea",
   "license": "GPL",

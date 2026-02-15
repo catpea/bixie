@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Media Gallery</title>
+    <meta name="color-scheme" content="dark light" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>😵‍💫</text></svg>" />
     <style>
       * {
@@ -183,9 +184,10 @@
     </div>
 
     <script>
-      // Configuration
-      const ITEMS_PER_LOAD = 5;
-      const VIDEO_VISIBILITY_THRESHOLD = 0.5; // 50% visibility required
+      // Configuration — injected by bixie at build time
+      const CONFIG = {"autoplay":true,"muted":false,"loop":true,"controls":true,"perPage":5,"threshold":0.5};
+      const ITEMS_PER_LOAD = CONFIG.perPage;
+      const VIDEO_VISIBILITY_THRESHOLD = CONFIG.threshold;
 
       // State
       let mediaFiles = [];
@@ -203,6 +205,46 @@
       // Video tracking
       const activeVideos = new Set();
       const videosPlayingBeforePause = new WeakSet();
+
+      // Single shared visibility observer for all videos
+      const videoVisibilityObserver = CONFIG.autoplay
+        ? new IntersectionObserver(
+            (entries) => {
+              entries.forEach((entry) => {
+                const video = entry.target;
+                const isVisible =
+                  entry.intersectionRatio >= VIDEO_VISIBILITY_THRESHOLD;
+
+                if (!isVisible) {
+                  // Video is going out of view — pause if playing
+                  if (!video.paused && !video.ended) {
+                    videosPlayingBeforePause.add(video);
+                    video.pause();
+                  }
+                } else {
+                  // Video is coming into view — autoplay it
+                  if (video.paused) {
+                    video
+                      .play()
+                      .then(() => {
+                        videosPlayingBeforePause.delete(video);
+                      })
+                      .catch((err) => {
+                        // Autoplay was prevented by browser
+                        console.log("Could not autoplay video:", err.message);
+                        videosPlayingBeforePause.delete(video);
+                      });
+                  }
+                }
+              });
+            },
+            {
+              root: null,
+              rootMargin: "0px",
+              threshold: [0, VIDEO_VISIBILITY_THRESHOLD],
+            }
+          )
+        : null;
 
       // Initialize the application
       async function init() {
@@ -307,10 +349,11 @@
         if (isVideo) {
           const video = document.createElement("video");
           video.src = `files/${file.name}`;
-          video.controls = true;
+          video.controls = CONFIG.controls;
           video.preload = "metadata";
           video.playsInline = true;
-          video.muted = false;
+          video.muted = CONFIG.muted;
+          video.loop = CONFIG.loop;
 
           // Track video state changes
           video.addEventListener("play", () => {
@@ -328,8 +371,8 @@
             activeVideos.delete(video);
           });
 
-          // Setup visibility observer for this video
-          setupVideoVisibilityObserver(video);
+          // Register with shared visibility observer
+          if (videoVisibilityObserver) videoVisibilityObserver.observe(video);
 
           contentWrapper.appendChild(video);
         } else {
@@ -361,47 +404,7 @@
         mediaGrid.appendChild(item);
       }
 
-      // Setup visibility observer for videos
-      function setupVideoVisibilityObserver(video) {
-        const options = {
-          root: null,
-          rootMargin: "0px",
-          threshold: [0, VIDEO_VISIBILITY_THRESHOLD],
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-          entries.forEach((entry) => {
-            const video = entry.target;
-            const isVisible = entry.intersectionRatio >= VIDEO_VISIBILITY_THRESHOLD;
-
-            if (!isVisible) {
-              // Video is going out of view
-              if (!video.paused && !video.ended) {
-                videosPlayingBeforePause.add(video);
-                video.pause();
-                console.log("Paused video:", video.src);
-              }
-            } else {
-              // Video is coming into view
-              if (videosPlayingBeforePause.has(video)) {
-                video
-                  .play()
-                  .then(() => {
-                    videosPlayingBeforePause.delete(video);
-                    console.log("Resumed video:", video.src);
-                  })
-                  .catch((err) => {
-                    // Autoplay was prevented
-                    console.log("Could not auto-resume video:", err.message);
-                    videosPlayingBeforePause.delete(video);
-                  });
-              }
-            }
-          });
-        }, options);
-
-        observer.observe(video);
-      }
+      // No per-video observer needed — using shared videoVisibilityObserver
 
       // Show error message
       function showError(message) {
@@ -420,11 +423,29 @@
       }
 
       // Handle page visibility changes
-      document.addEventListener("visibilitychange", () => {
-        if (document.hidden) {
-          pauseAllVideos();
-        }
-      });
+      if (CONFIG.autoplay) {
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            // Track playing videos so we can resume them
+            activeVideos.forEach((video) => {
+              if (!video.paused) {
+                videosPlayingBeforePause.add(video);
+              }
+            });
+            pauseAllVideos();
+          } else {
+            // Tab is visible again — resume videos that were playing
+            document.querySelectorAll("video").forEach((video) => {
+              if (videosPlayingBeforePause.has(video)) {
+                video
+                  .play()
+                  .then(() => videosPlayingBeforePause.delete(video))
+                  .catch(() => videosPlayingBeforePause.delete(video));
+              }
+            });
+          }
+        });
+      }
 
       // Start the application
       init();
